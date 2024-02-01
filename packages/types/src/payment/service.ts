@@ -152,7 +152,7 @@ export interface IPaymentModuleService extends IModuleService {
   setPaymentSessions(
     paymentCollectionId: string,
     data: SetPaymentSessionsDTO[],
-    context: SetPaymentSessionsContextDTO[],
+    context: SetPaymentSessionsContextDTO,
     sharedContext?: Context
   ): Promise<PaymentCollectionDTO>
 }

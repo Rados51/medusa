@@ -90,6 +90,9 @@ export interface CreatePaymentSessionDTO {
 export interface UpdatePaymentSessionDTO {
   id: string
 
+  amount?: number
+  currency_code?: string
+
   data?: Record<string, unknown>
   status?: PaymentSessionStatus
 

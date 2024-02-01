@@ -302,7 +302,7 @@ export interface PaymentSessionDTO {
   /**
    * Payment provider data
    */
-  data?: Record<string, unknown>
+  data: Record<string, unknown>
 
   /**
    * The status of the payment session

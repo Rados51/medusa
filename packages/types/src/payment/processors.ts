@@ -1,4 +1,4 @@
-import { PaymentSessionStatus } from "./common"
+import { PaymentSessionDTO, PaymentSessionStatus } from "./common"
 
 /**
  * @interface
@@ -106,7 +106,7 @@ export type CreatePaymentInput = {
   amount: number
   currency_code: string
   provider_id?: string
-  payment_session: PaymentSession
+  payment_session: PaymentSessionDTO
   resource_id?: string
 }
 

@@ -595,7 +595,10 @@ export default class PaymentModuleService implements IPaymentModuleService {
     }
 
     const paymentSessionsMap = new Map(
-      paymentCollection.payment_sessions.map((session) => [session.id, session])
+      paymentCollection.payment_sessions!.map((session) => [
+        session.id,
+        session,
+      ])
     )
 
     const totalSessionsAmount = data.reduce((acc, i) => acc + i.amount, 0)
@@ -614,6 +617,18 @@ export default class PaymentModuleService implements IPaymentModuleService {
         input.session_id && paymentSessionsMap.get(input.session_id)
       let paymentSession: PaymentSessionDTO
 
+      const providerDataInput = {
+        amount: input.amount,
+        currency_code: paymentCollection.currency_code,
+
+        resource_id: context.resource_id,
+        email: context.email,
+        customer: context.customer,
+        context: context.context,
+        billing_address: context.billing_address,
+        paymentSessionData: {},
+      }
+
       if (existingSession) {
         await this.paymentProviderService_.updateSession(
           {
@@ -621,31 +636,22 @@ export default class PaymentModuleService implements IPaymentModuleService {
             provider_id: existingSession.provider_id,
             data: existingSession.data,
           },
-          {}
+          providerDataInput
         )
 
         paymentSession = await this.updatePaymentSession({
           id: existingSession.id,
           amount: input.amount,
-          currency_code: input.currency_code,
-
-          context: context.context,
-          customer: context.customer,
-          email: context.email,
-          billing_address: context.billing_address,
+          // currency_code: input.currency_code,
+          customer_id: context.customer!.id as string,
           resource_id: context.resource_id,
-          paymentSessionData: context.data,
+          data: existingSession.data,
         })
       } else {
-        const sessionData = this.paymentProviderService_.createSession({
-          amount: input.amount,
-          currency_code: paymentCollection.currency_code,
-          provider_id: input.provider_id,
-
-          resource_id: context.resource_id,
-          email: context.email,
-          customer_id: context.customer_id,
-        })
+        const sessionData = this.paymentProviderService_.createSession(
+          input.provider_id,
+          providerDataInput
+        )
 
         paymentSession = await this.createPaymentSession(paymentCollectionId, {
           amount: input.amount,
@@ -659,14 +665,24 @@ export default class PaymentModuleService implements IPaymentModuleService {
     }
 
     if (paymentCollection.payment_sessions?.length) {
-      const toRemoveSessionIds = paymentCollection.payment_sessions
-        .filter(({ id }) => !currentSessionsIds.includes(id))
-        .map(({ id }) => id)
+      const toRemoveSessions = paymentCollection.payment_sessions.filter(
+        ({ id }) => !currentSessionsIds.includes(id)
+      )
 
-      if (toRemoveSessionIds.length) {
-        // TODO remove sessions with provider
+      if (toRemoveSessions.length) {
+        await Promise.all(
+          toRemoveSessions.map((session) =>
+            this.paymentProviderService_.deleteSession({
+              provider_id: session.provider_id,
+              data: session.data,
+            })
+          )
+        )
 
-        await this.deletePaymentSession(toRemoveSessionIds, sharedContext)
+        await this.deletePaymentSession(
+          toRemoveSessions.map(({ id }) => id),
+          sharedContext
+        )
       }
     }
 
@@ -799,6 +815,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
     const providersToLoad = this.__container__["payment_providers"]
 
     const providers = await this.paymentProviderService_.list({
+      // @ts-ignore TODO
       id: providersToLoad.map((p) => p.provider),
     })
 

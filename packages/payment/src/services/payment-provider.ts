@@ -19,7 +19,10 @@ import {
 import { PaymentProvider } from "@models"
 
 import { isDefined, MedusaError } from "medusa-core-utils"
-import { CreatePaymentInput } from "@medusajs/types/src"
+import {
+  CreatePaymentInput,
+  PaymentProcessorContext,
+} from "@medusajs/types/src"
 
 export function isPaymentProcessorError(
   obj: any
@@ -72,9 +75,10 @@ export default class PaymentProviderService implements IPaymentProviderService {
   }
 
   async createSession(
-    sessionInput: PaymentSessionInput
+    provider_id: string,
+    sessionInput: PaymentProcessorContext
   ): Promise<PaymentProcessorSessionResponse["session_data"]> {
-    const provider = this.retrieveProvider(sessionInput.provider_id)
+    const provider = this.retrieveProvider(provider_id)
 
     if (
       !isDefined(sessionInput.currency_code) ||
@@ -86,20 +90,7 @@ export default class PaymentProviderService implements IPaymentProviderService {
       )
     }
 
-    const paymentResponse = await provider.initiatePayment({
-      billing_address: sessionInput.billing_address,
-      email: sessionInput.email,
-
-      currency_code: sessionInput.currency_code,
-      amount: sessionInput.amount,
-      resource_id: sessionInput.resource_id,
-
-      // TODO:
-      context: sessionInput.context,
-      customer: sessionInput.customer_id,
-
-      paymentSessionData: {},
-    })
+    const paymentResponse = await provider.initiatePayment(sessionInput)
 
     if ("error" in paymentResponse) {
       this.throwFromPaymentProcessorError(paymentResponse)
@@ -130,7 +121,7 @@ export default class PaymentProviderService implements IPaymentProviderService {
       data: Record<string, unknown>
       provider_id: string
     },
-    sessionInput: PaymentSessionInput
+    sessionInput: PaymentProcessorContext
   ): Promise<Record<string, unknown> | undefined> {
     const provider = this.retrieveProvider(paymentSession.provider_id)
 
