@@ -1,20 +1,16 @@
 import { SqlEntityManager } from "@mikro-orm/postgresql"
 import { asValue } from "awilix"
-import {
-  createPaymentCollections,
-  createPaymentSessions,
-  createPayments,
-} from "../../../__fixtures__"
 import { createMedusaContainer } from "@medusajs/utils"
-import { PaymentService } from "@services"
+
+import { PaymentProviderService } from "@services"
 
 import { MikroOrmWrapper } from "../../../utils"
 import ContainerLoader from "../../../../src/loaders/container"
 
 jest.setTimeout(30000)
 
-describe("Payment Service", () => {
-  let service: PaymentService
+describe("Payment Provider Service", () => {
+  let service: PaymentProviderService
   let testManager: SqlEntityManager
   let repositoryManager: SqlEntityManager
 
@@ -28,41 +24,59 @@ describe("Payment Service", () => {
 
     await ContainerLoader({ container })
 
-    service = container.resolve("paymentService")
-
-    await createPaymentCollections(testManager)
-    await createPaymentSessions(testManager)
-    await createPayments(testManager)
+    service = container.resolve("paymentProviderService")
   })
 
   afterEach(async () => {
     await MikroOrmWrapper.clearDatabase()
   })
 
-  describe("retrieve with amounts", () => {
-    it("should retrieve a payment with computed amounts", async () => {
-      let payment: any = await service.retrieve("pay-id-1", {
-        select: ["captured_amount"],
-      })
+  describe("CRUD", () => {
+    it("should create payment providers", async () => {
+      let created = await service.create([
+        { id: "stripe", is_enabled: false },
+        { id: "paypal" },
+      ])
 
-      expect(payment.captured_amount).toEqual(0)
+      expect(created).toEqual(
+        expect.arrayContaining([
+          {
+            is_enabled: false,
+            id: "stripe",
+          },
+          {
+            is_enabled: true,
+            id: "paypal",
+          },
+        ])
+      )
+    })
 
-      await service.capture([{ amount: 50, payment_id: "pay-id-1" }])
+    it("should list payment providers", async () => {
+      await service.create([
+        { id: "stripe", is_enabled: false },
+        { id: "paypal" },
+        { id: "manual" },
+      ])
 
-      payment = await service.retrieve("pay-id-1", {
-        select: ["captured_amount"],
-      })
+      const providers = await service.list()
 
-      expect(payment.captured_amount).toEqual(50)
-
-      await service.capture([{ amount: 25, payment_id: "pay-id-1" }])
-
-      payment = await service.retrieve("pay-id-1", {
-        select: ["captured_amount", "refunded_amount"],
-      })
-
-      expect(payment.captured_amount).toEqual(75)
-      expect(payment.refunded_amount).toEqual(0)
+      expect(providers).toEqual(
+        expect.arrayContaining([
+          {
+            is_enabled: false,
+            id: "stripe",
+          },
+          {
+            is_enabled: true,
+            id: "paypal",
+          },
+          {
+            is_enabled: true,
+            id: "manual",
+          },
+        ])
+      )
     })
   })
 })

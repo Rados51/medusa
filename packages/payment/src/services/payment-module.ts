@@ -3,6 +3,7 @@ import {
   CreateCaptureDTO,
   CreatePaymentCollectionDTO,
   CreatePaymentDTO,
+  CreatePaymentProviderDTO,
   CreatePaymentSessionDTO,
   CreateRefundDTO,
   DAL,
@@ -10,10 +11,12 @@ import {
   FindConfig,
   InternalModuleDeclaration,
   IPaymentModuleService,
+  MedusaContainer,
   ModuleJoinerConfig,
   PaymentCollectionDTO,
   PaymentDTO,
   PaymentSessionDTO,
+  SetPaymentSessionsContextDTO,
   SetPaymentSessionsDTO,
   UpdatePaymentCollectionDTO,
   UpdatePaymentDTO,
@@ -38,14 +41,17 @@ type InjectedDependencies = {
   paymentCollectionService: services.PaymentCollectionService
   paymentService: services.PaymentService
   paymentSessionService: services.PaymentSessionService
+  paymentProviderService: services.PaymentProviderService
 }
 
 export default class PaymentModuleService implements IPaymentModuleService {
   protected baseRepository_: DAL.RepositoryService
 
+  protected __container__: MedusaContainer
   protected paymentService_: services.PaymentService
   protected paymentSessionService_: services.PaymentSessionService
   protected paymentCollectionService_: services.PaymentCollectionService
+  protected paymentProviderService_: services.PaymentProviderService
 
   constructor(
     {
@@ -56,6 +62,8 @@ export default class PaymentModuleService implements IPaymentModuleService {
     }: InjectedDependencies,
     protected readonly moduleDeclaration: InternalModuleDeclaration
   ) {
+    this.__container__ = arguments[0]
+
     this.baseRepository_ = baseRepository
 
     this.paymentService_ = paymentService
@@ -65,6 +73,10 @@ export default class PaymentModuleService implements IPaymentModuleService {
 
   __joinerConfig(): ModuleJoinerConfig {
     return joinerConfig
+  }
+
+  __hooks = {
+    onApplicationStart: async () => await this.createProvidersOnLoad(),
   }
 
   createPaymentCollection(
@@ -566,6 +578,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
   async setPaymentSessions(
     paymentCollectionId: string,
     data: SetPaymentSessionsDTO[],
+    context: SetPaymentSessionsContextDTO,
     sharedContext?: Context | undefined
   ): Promise<PaymentCollectionDTO> {
     const paymentCollection = await this.retrievePaymentCollection(
@@ -582,10 +595,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
     }
 
     const paymentSessionsMap = new Map(
-      paymentCollection.payment_providers.map((session) => [
-        session.id,
-        session,
-      ])
+      paymentCollection.payment_sessions.map((session) => [session.id, session])
     )
 
     const totalSessionsAmount = data.reduce((acc, i) => acc + i.amount, 0)
@@ -605,19 +615,43 @@ export default class PaymentModuleService implements IPaymentModuleService {
       let paymentSession: PaymentSessionDTO
 
       if (existingSession) {
-        // TODO: update session with provider
+        await this.paymentProviderService_.updateSession(
+          {
+            id: existingSession.id,
+            provider_id: existingSession.provider_id,
+            data: existingSession.data,
+          },
+          {}
+        )
+
         paymentSession = await this.updatePaymentSession({
           id: existingSession.id,
-          authorized_at: new Date(),
+          amount: input.amount,
+          currency_code: input.currency_code,
+
+          context: context.context,
+          customer: context.customer,
+          email: context.email,
+          billing_address: context.billing_address,
+          resource_id: context.resource_id,
+          paymentSessionData: context.data,
         })
       } else {
-        // TODO: create session with provider
+        const sessionData = this.paymentProviderService_.createSession({
+          amount: input.amount,
+          currency_code: paymentCollection.currency_code,
+          provider_id: input.provider_id,
+
+          resource_id: context.resource_id,
+          email: context.email,
+          customer_id: context.customer_id,
+        })
 
         paymentSession = await this.createPaymentSession(paymentCollectionId, {
-          authorized_at: new Date(),
           amount: input.amount,
           provider_id: input.provider_id,
           currency_code: paymentCollection.currency_code,
+          data: sessionData,
         })
       }
 
@@ -759,5 +793,29 @@ export default class PaymentModuleService implements IPaymentModuleService {
       Array.isArray(paymentId) ? updated : updated[0],
       { populate: true }
     )
+  }
+
+  private async createProvidersOnLoad() {
+    const providersToLoad = this.__container__["payment_providers"]
+
+    const providers = await this.paymentProviderService_.list({
+      id: providersToLoad.map((p) => p.provider),
+    })
+
+    const loadedProvidersMap = new Map(providers.map((p) => [p.id, p]))
+
+    const providersToCreate: CreatePaymentProviderDTO[] = []
+
+    for (const provider of providersToLoad) {
+      if (loadedProvidersMap.has(provider.provider)) {
+        continue
+      }
+
+      providersToCreate.push({
+        id: provider.provider,
+      })
+    }
+
+    await this.paymentProviderService_.create(providersToCreate)
   }
 }

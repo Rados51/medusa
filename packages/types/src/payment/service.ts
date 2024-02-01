@@ -6,6 +6,7 @@ import {
   CreatePaymentDTO,
   CreatePaymentSessionDTO,
   CreateRefundDTO,
+  SetPaymentSessionsContextDTO,
   SetPaymentSessionsDTO,
   UpdatePaymentCollectionDTO,
   UpdatePaymentDTO,
@@ -151,6 +152,7 @@ export interface IPaymentModuleService extends IModuleService {
   setPaymentSessions(
     paymentCollectionId: string,
     data: SetPaymentSessionsDTO[],
+    context: SetPaymentSessionsContextDTO[],
     sharedContext?: Context
   ): Promise<PaymentCollectionDTO>
 }

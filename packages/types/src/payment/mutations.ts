@@ -78,6 +78,7 @@ export interface CreatePaymentSessionDTO {
   amount: number
   currency_code: string
   provider_id: string
+  data: Record<string, unknown> // Payment Provider data
 
   authorized_at?: Date
 
@@ -103,4 +104,35 @@ export interface SetPaymentSessionsDTO {
   provider_id: string
   amount: number
   session_id?: string
+}
+
+export interface SetPaymentSessionsContextDTO {
+  /**
+   * The payment's billing address.
+   */
+  billing_address?: Record<string, unknown> | null // TODO: type
+  /**
+   * The customer's email.
+   */
+  email: string
+  /**
+   * The ID of the resource the payment is associated with. For example, the cart's ID.
+   */
+  resource_id: string
+  /**
+   * The customer associated with this payment.
+   */
+  customer?: Record<string, unknown> // TODO: type
+  /**
+   * The cart's context.
+   */
+  context: Record<string, unknown>
+}
+
+/**
+ * Payment Provider
+ */
+export interface CreatePaymentProviderDTO {
+  id: string
+  is_enabled?: boolean
 }
