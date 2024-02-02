@@ -63,7 +63,7 @@ export default class PaymentProviderService implements IPaymentProviderService {
   retrieveProvider(providerId: string): IPaymentProcessor {
     try {
       return this.container_[
-        `paymentProvider_${providerId}`
+        `payment_provider_${providerId}`
       ] as IPaymentProcessor
     } catch (e) {
       throw new MedusaError(
@@ -134,11 +134,14 @@ export default class PaymentProviderService implements IPaymentProviderService {
   async createPayment(
     data: CreatePaymentInput
   ): Promise<Record<string, unknown>> {
-    const { payment_session, currency_code, amount, provider_id } = data
+    const { payment_session, provider_id } = data
     const providerId = provider_id ?? payment_session.provider_id
 
     const provider = this.retrieveProvider(providerId)
 
+    /**
+     * NOTE: JUST RETRIEVE
+     */
     const paymentData = await provider.retrievePayment(payment_session.data)
     if ("error" in paymentData) {
       this.throwFromPaymentProcessorError(paymentData as PaymentProcessorError)
@@ -153,7 +156,7 @@ export default class PaymentProviderService implements IPaymentProviderService {
       data: Record<string, unknown>
     },
     context: Record<string, unknown>
-  ): Promise<{ data: Record<string, unknown>; status: string } | undefined> {
+  ): Promise<{ data: Record<string, unknown>; status: PaymentSessionStatus }> {
     const provider = this.retrieveProvider(paymentSession.provider_id)
 
     const res = await provider.authorizePayment(paymentSession.data, context)

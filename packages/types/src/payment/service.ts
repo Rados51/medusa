@@ -71,6 +71,7 @@ export interface IPaymentModuleService extends IModuleService {
   authorizePaymentCollection(
     paymentCollectionId: string,
     sessionIds: string[],
+    context: Record<string, unknown>,
     sharedContext?: Context
   ): Promise<PaymentCollectionDTO>
 

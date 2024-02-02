@@ -96,7 +96,7 @@ export interface UpdatePaymentSessionDTO {
   data?: Record<string, unknown>
   status?: PaymentSessionStatus
 
-  authorized_at?: Date
+  authorized_at?: Date | null
 
   cart_id?: string
   resource_id?: string

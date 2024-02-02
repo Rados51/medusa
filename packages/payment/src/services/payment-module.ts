@@ -58,6 +58,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
       baseRepository,
       paymentService,
       paymentSessionService,
+      paymentProviderService,
       paymentCollectionService,
     }: InjectedDependencies,
     protected readonly moduleDeclaration: InternalModuleDeclaration
@@ -67,6 +68,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
     this.baseRepository_ = baseRepository
 
     this.paymentService_ = paymentService
+    this.paymentProviderService_ = paymentProviderService
     this.paymentSessionService_ = paymentSessionService
     this.paymentCollectionService_ = paymentCollectionService
   }
@@ -486,6 +488,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
   async authorizePaymentCollection(
     paymentCollectionId: string,
     sessionIds: string[],
+    context: Record<string, unknown> = {},
     @MedusaContext() sharedContext?: Context
   ): Promise<PaymentCollectionDTO> {
     const paymentCollection = await this.retrievePaymentCollection(
@@ -526,11 +529,24 @@ export default class PaymentModuleService implements IPaymentModuleService {
         continue
       }
 
-      // MOCK - TODO: authorize with payment provider
-      paymentSession.status = PaymentSessionStatus.AUTHORIZED
-      // MOCK
+      const { data, status } =
+        await this.paymentProviderService_.authorizePayment(
+          {
+            provider_id: paymentSession.provider_id,
+            data: paymentSession.data,
+          },
+          context
+        )
 
-      if (paymentSession.status === PaymentSessionStatus.AUTHORIZED) {
+      await this.updatePaymentSession({
+        id: paymentSession.id,
+        data,
+        status,
+        authorized_at:
+          status === PaymentSessionStatus.AUTHORIZED ? new Date() : null,
+      })
+
+      if (status === PaymentSessionStatus.AUTHORIZED) {
         authorizedAmount += paymentSession.amount
 
         await this.createPayment(
@@ -541,7 +557,8 @@ export default class PaymentModuleService implements IPaymentModuleService {
             provider_id: paymentSession.provider_id,
             payment_session_id: paymentSession.id,
             payment_collection_id: paymentCollection.id,
-            data: {}, // TODO: from provider
+            data: paymentSession.data, // TODO: fetch latest data here <-
+            // TODO: cart_id
           },
           sharedContext
         )
@@ -603,7 +620,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
 
     const totalSessionsAmount = data.reduce((acc, i) => acc + i.amount, 0)
 
-    if (totalSessionsAmount === paymentCollection.amount) {
+    if (totalSessionsAmount !== paymentCollection.amount) {
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
         `The sum of sessions is not equal to ${paymentCollection.amount} on Payment Collection`
@@ -613,8 +630,9 @@ export default class PaymentModuleService implements IPaymentModuleService {
     const currentSessionsIds: string[] = []
 
     for (const input of data) {
-      const existingSession =
-        input.session_id && paymentSessionsMap.get(input.session_id)
+      const existingSession = input.session_id
+        ? paymentSessionsMap.get(input.session_id)
+        : null
       let paymentSession: PaymentSessionDTO
 
       const providerDataInput = {
@@ -626,7 +644,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
         customer: context.customer,
         context: context.context,
         billing_address: context.billing_address,
-        paymentSessionData: {},
+        paymentSessionData: existingSession?.data || {},
       }
 
       if (existingSession) {
@@ -648,7 +666,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
           data: existingSession.data,
         })
       } else {
-        const sessionData = this.paymentProviderService_.createSession(
+        const sessionData = await this.paymentProviderService_.createSession(
           input.provider_id,
           providerDataInput
         )
@@ -816,7 +834,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
 
     const providers = await this.paymentProviderService_.list({
       // @ts-ignore TODO
-      id: providersToLoad.map((p) => p.provider),
+      id: providersToLoad.map((p) => p.getIdentifier()),
     })
 
     const loadedProvidersMap = new Map(providers.map((p) => [p.id, p]))
@@ -824,12 +842,12 @@ export default class PaymentModuleService implements IPaymentModuleService {
     const providersToCreate: CreatePaymentProviderDTO[] = []
 
     for (const provider of providersToLoad) {
-      if (loadedProvidersMap.has(provider.provider)) {
+      if (loadedProvidersMap.has(provider.getIdentifier())) {
         continue
       }
 
       providersToCreate.push({
-        id: provider.provider,
+        id: provider.getIdentifier(),
       })
     }
 

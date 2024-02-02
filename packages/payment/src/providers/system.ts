@@ -1,77 +1,74 @@
 import {
-  AbstractPaymentProcessor,
+  IPaymentProcessor,
   PaymentProcessorContext,
   PaymentProcessorError,
   PaymentProcessorSessionResponse,
   PaymentSessionStatus,
-} from "@medusajs/medusa" // TODO move type
+} from "@medusajs/types"
 
-class SystemPaymentProvides extends AbstractPaymentProcessor {
-  protected config?: Record<string, unknown> | undefined
+// TODO: move class
+import { AbstractPaymentProcessor } from "@medusajs/medusa"
 
-  constructor(container, options) {
-    super(container)
+export class SystemProviderService extends AbstractPaymentProcessor {
+  static identifier = "system"
+
+  async createPayment(_): Promise<Record<string, unknown>> {
+    return {}
   }
 
-  getIdentifier(): string {
-    throw new Error("Method not implemented.")
+  async getStatus(_): Promise<string> {
+    return "authorized"
   }
-  capturePayment(
-    paymentSessionData: Record<string, unknown>
-  ): Promise<Record<string, unknown> | PaymentProcessorError> {
-    throw new Error("Method not implemented.")
+
+  async getPaymentData(_): Promise<Record<string, unknown>> {
+    return {}
   }
-  authorizePayment(
-    paymentSessionData: Record<string, unknown>,
-    context: Record<string, unknown>
-  ): Promise<
-    | PaymentProcessorError
-    | { status: PaymentSessionStatus; data: Record<string, unknown> }
-  > {
-    throw new Error("Method not implemented.")
-  }
-  cancelPayment(
-    paymentSessionData: Record<string, unknown>
-  ): Promise<Record<string, unknown> | PaymentProcessorError> {
-    throw new Error("Method not implemented.")
-  }
-  initiatePayment(
+
+  async initiatePayment(
     context: PaymentProcessorContext
-  ): Promise<PaymentProcessorError | PaymentProcessorSessionResponse> {
-    throw new Error("Method not implemented.")
+  ): Promise<PaymentProcessorSessionResponse> {
+    return { session_data: {} }
   }
-  deletePayment(
-    paymentSessionData: Record<string, unknown>
-  ): Promise<Record<string, unknown> | PaymentProcessorError> {
-    throw new Error("Method not implemented.")
-  }
-  getPaymentStatus(
+
+  async getPaymentStatus(
     paymentSessionData: Record<string, unknown>
   ): Promise<PaymentSessionStatus> {
     throw new Error("Method not implemented.")
   }
-  refundPayment(
-    paymentSessionData: Record<string, unknown>,
-    refundAmount: number
-  ): Promise<Record<string, unknown> | PaymentProcessorError> {
-    throw new Error("Method not implemented.")
-  }
-  retrievePayment(
+
+  async retrievePayment(
     paymentSessionData: Record<string, unknown>
   ): Promise<Record<string, unknown> | PaymentProcessorError> {
     throw new Error("Method not implemented.")
   }
-  updatePayment(
-    context: PaymentProcessorContext
-  ): Promise<void | PaymentProcessorError | PaymentProcessorSessionResponse> {
-    throw new Error("Method not implemented.")
+
+  async authorizePayment(_): Promise<Record<string, unknown>> {
+    return { data: {}, status: "authorized" }
   }
-  updatePaymentData(
-    sessionId: string,
-    data: Record<string, unknown>
-  ): Promise<Record<string, unknown> | PaymentProcessorError> {
-    throw new Error("Method not implemented.")
+
+  async updatePaymentData(_): Promise<Record<string, unknown>> {
+    return {}
+  }
+
+  async updatePayment(_): Promise<Record<string, unknown>> {
+    return {}
+  }
+
+  async deletePayment(_): Promise<Record<string, unknown>> {
+    return {}
+  }
+
+  async capturePayment(_): Promise<Record<string, unknown>> {
+    return {}
+  }
+
+  async refundPayment(_): Promise<Record<string, unknown>> {
+    return {}
+  }
+
+  async cancelPayment(_): Promise<Record<string, unknown>> {
+    return {}
   }
 }
 
-export default SystemPaymentProvides
+export default SystemProviderService

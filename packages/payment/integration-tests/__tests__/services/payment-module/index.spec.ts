@@ -46,6 +46,10 @@ describe("Payment Module Service", () => {
         },
       })
 
+      if (service.__hooks?.onApplicationStart) {
+        await service.__hooks.onApplicationStart()
+      }
+
       await createPaymentCollections(repositoryManager)
       await createPaymentSessions(repositoryManager)
       await createPayments(repositoryManager)
@@ -155,6 +159,10 @@ describe("Payment Module Service", () => {
           schema: process.env.MEDUSA_PAYMNET_DB_SCHEMA,
         },
       })
+
+      if (service.__hooks?.onApplicationStart) {
+        await service.__hooks.onApplicationStart()
+      }
 
       await createPaymentCollections(repositoryManager)
       await createPaymentSessions(repositoryManager)
@@ -382,6 +390,10 @@ describe("Payment Module Service", () => {
         },
       })
 
+      if (service.__hooks?.onApplicationStart) {
+        await service.__hooks.onApplicationStart()
+      }
+
       await createPaymentCollections(repositoryManager)
       await createPaymentSessions(repositoryManager)
     })
@@ -435,12 +447,12 @@ describe("Payment Module Service", () => {
           {
             amount: 100,
             currency_code: "usd",
-            provider_id: "manual",
+            provider_id: "system",
           },
           {
             amount: 100,
             currency_code: "usd",
-            provider_id: "manual",
+            provider_id: "system",
           },
         ])
 
@@ -463,10 +475,18 @@ describe("Payment Module Service", () => {
               expect.objectContaining({
                 id: sessions[0].id,
                 amount: 100,
+                provider_id: "system",
+                data: {},
+                status: "authorized",
+                authorized_at: expect.any(Date),
               }),
               expect.objectContaining({
                 id: sessions[1].id,
                 amount: 100,
+                provider_id: "system",
+                data: {},
+                status: "authorized",
+                authorized_at: expect.any(Date),
               }),
             ]),
             payments: expect.arrayContaining([
@@ -476,15 +496,73 @@ describe("Payment Module Service", () => {
                   id: sessions[0].id,
                 }),
                 amount: 100,
+                authorized_amount: 100,
+                currency_code: "usd",
+                provider_id: "system",
               }),
               expect.objectContaining({
                 payment_session: expect.objectContaining({
                   id: sessions[1].id,
                 }),
                 amount: 100,
+                authorized_amount: 100,
+                currency_code: "usd",
+                provider_id: "system",
               }),
             ]),
           })
+        )
+      })
+    })
+
+    describe("set sessions", () => {
+      it("should set sessions on a collection", async () => {
+        let collection = await service.createPaymentCollection({
+          amount: 200,
+          region_id: "test-region",
+          currency_code: "usd",
+        })
+
+        await service.setPaymentSessions(
+          collection.id,
+          [
+            { amount: 100, provider_id: "system" },
+            { amount: 100, provider_id: "system" },
+          ],
+          {
+            resource_id: "todo",
+            email: "asd",
+            context: {},
+            billing_address: {},
+            customer: {},
+          }
+        )
+
+        collection = await service.retrievePaymentCollection(collection.id, {
+          relations: ["payment_sessions"],
+        })
+
+        expect(collection.payment_sessions).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              currency_code: "usd",
+              amount: 100,
+              provider_id: "system",
+              data: {},
+              status: "pending",
+              authorized_at: null,
+              payment: null,
+            }),
+            expect.objectContaining({
+              currency_code: "usd",
+              amount: 100,
+              provider_id: "system",
+              data: {},
+              status: "pending",
+              authorized_at: null,
+              payment: null,
+            }),
+          ])
         )
       })
     })
@@ -503,6 +581,10 @@ describe("Payment Module Service", () => {
           schema: process.env.MEDUSA_PAYMNET_DB_SCHEMA,
         },
       })
+
+      if (service.__hooks?.onApplicationStart) {
+        await service.__hooks.onApplicationStart()
+      }
 
       await createPaymentCollections(repositoryManager)
       await createPaymentSessions(repositoryManager)
