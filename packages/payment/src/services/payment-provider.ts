@@ -8,7 +8,6 @@ import {
   PaymentProcessorAuthorizeResponse,
   PaymentProcessorError,
   PaymentProcessorSessionResponse,
-  PaymentSessionInput,
   PaymentSessionStatus,
 } from "@medusajs/types"
 import {
@@ -97,22 +96,6 @@ export default class PaymentProviderService implements IPaymentProviderService {
     }
 
     return (paymentResponse as PaymentProcessorSessionResponse).session_data
-  }
-
-  async refreshSession(
-    paymentSession: {
-      id: string
-      data: Record<string, unknown>
-      provider_id: string
-    },
-    sessionInput: PaymentSessionInput
-  ): Promise<Record<string, unknown>> {
-    throw new Error(
-      "TODO: " +
-        "1. call await provider.deletePayment(session.data)" +
-        "2. delete existing session" +
-        "3. create new session"
-    )
   }
 
   async updateSession(
