@@ -1,5 +1,22 @@
 # @medusajs/modules-sdk
 
+## 1.12.8
+
+### Patch Changes
+
+- [#5923](https://github.com/medusajs/medusa/pull/5923) [`3db2f95e6`](https://github.com/medusajs/medusa/commit/3db2f95e65909f4fff432990b48be74509052e83) Thanks [@fPolic](https://github.com/fPolic)! - feat: Sales Channel module
+
+- [#6312](https://github.com/medusajs/medusa/pull/6312) [`96ba49329`](https://github.com/medusajs/medusa/commit/96ba49329b6b05922c90f0c55f16455cb40aa5ca) Thanks [@carlos-r-l-rodrigues](https://github.com/carlos-r-l-rodrigues)! - Load custom modules by path
+
+- [#6263](https://github.com/medusajs/medusa/pull/6263) [`45134e4d1`](https://github.com/medusajs/medusa/commit/45134e4d11cfcdc08dbd10aae687bfbe9e848ab9) Thanks [@carlos-r-l-rodrigues](https://github.com/carlos-r-l-rodrigues)! - Workflows passing MedusaContext as argument
+
+- [#6218](https://github.com/medusajs/medusa/pull/6218) [`884428a1b`](https://github.com/medusajs/medusa/commit/884428a1b573e499d7659aefed639bf797147428) Thanks [@carlos-r-l-rodrigues](https://github.com/carlos-r-l-rodrigues)! - Feat: Event Aggregator
+
+- Updated dependencies [[`3db2f95e6`](https://github.com/medusajs/medusa/commit/3db2f95e65909f4fff432990b48be74509052e83), [`96ba49329`](https://github.com/medusajs/medusa/commit/96ba49329b6b05922c90f0c55f16455cb40aa5ca), [`45134e4d1`](https://github.com/medusajs/medusa/commit/45134e4d11cfcdc08dbd10aae687bfbe9e848ab9), [`e749dd653`](https://github.com/medusajs/medusa/commit/e749dd653c755bfc3632b134d32c15ceaee0a852), [`884428a1b`](https://github.com/medusajs/medusa/commit/884428a1b573e499d7659aefed639bf797147428), [`d1c18a309`](https://github.com/medusajs/medusa/commit/d1c18a3090d71c68a98343fdbb53516f416504c5)]:
+  - @medusajs/types@1.11.12
+  - @medusajs/orchestration@0.5.4
+  - @medusajs/utils@1.11.5
+
 ## 1.12.7
 
 ### Patch Changes
