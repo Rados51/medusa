@@ -68,12 +68,14 @@ describe("Payment Module Service", () => {
 
       const paymentSession = await service.createPaymentSession(
         paymentCollection.id,
-        { amount: 200, provider_id: "manual", currency_code: "USD" }
+        { amount: 200, provider_id: "system", currency_code: "USD", data: {} }
       )
 
-      await service.authorizePaymentCollection(paymentCollection.id, [
-        paymentSession.id,
-      ])
+      await service.authorizePaymentCollection(
+        paymentCollection.id,
+        [paymentSession.id],
+        {}
+      )
 
       paymentCollection = await service.retrievePaymentCollection(
         paymentCollection.id,
@@ -108,9 +110,9 @@ describe("Payment Module Service", () => {
               id: expect.any(String),
               currency_code: "USD",
               amount: 200,
-              provider_id: "manual",
-              status: "pending",
-              authorized_at: null,
+              provider_id: "system",
+              status: "authorized",
+              authorized_at: expect.any(Date),
             }),
           ],
           payments: [
@@ -118,7 +120,7 @@ describe("Payment Module Service", () => {
               id: expect.any(String),
               amount: 200,
               currency_code: "USD",
-              provider_id: "manual",
+              provider_id: "system",
               captures: [
                 expect.objectContaining({
                   amount: 200,
@@ -406,8 +408,9 @@ describe("Payment Module Service", () => {
       it("should create a payment session successfully", async () => {
         await service.createPaymentSession("pay-col-id-1", {
           amount: 200,
-          provider_id: "manual",
+          provider_id: "system",
           currency_code: "usd",
+          data: {},
         })
 
         const paymentCollection = await service.retrievePaymentCollection(
@@ -415,6 +418,7 @@ describe("Payment Module Service", () => {
           { relations: ["payment_sessions"] }
         )
 
+        console.log(paymentCollection.payment_sessions)
         expect(paymentCollection).toEqual(
           expect.objectContaining({
             id: "pay-col-id-1",
@@ -422,12 +426,12 @@ describe("Payment Module Service", () => {
             payment_sessions: expect.arrayContaining([
               expect.objectContaining({
                 id: expect.any(String),
-                data: null,
+                data: {},
                 status: "pending",
                 authorized_at: null,
                 currency_code: "usd",
                 amount: 200,
-                provider_id: "manual",
+                provider_id: "system",
               }),
             ]),
           })
@@ -448,17 +452,20 @@ describe("Payment Module Service", () => {
             amount: 100,
             currency_code: "usd",
             provider_id: "system",
+            data: {},
           },
           {
             amount: 100,
             currency_code: "usd",
             provider_id: "system",
+            data: {},
           },
         ])
 
         await service.authorizePaymentCollection(
           collection.id,
-          sessions.map(({ id }) => id)
+          sessions.map(({ id }) => id),
+          {}
         )
 
         const authorizedCollection = await service.retrievePaymentCollection(
@@ -609,6 +616,7 @@ describe("Payment Module Service", () => {
             amount: 200,
             provider_id: "manual",
             currency_code: "usd",
+            data: {},
           }
         )
 

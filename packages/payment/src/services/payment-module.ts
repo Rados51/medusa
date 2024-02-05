@@ -35,6 +35,7 @@ import * as services from "@services"
 import { Payment } from "@models"
 
 import { joinerConfig } from "../joiner-config"
+import * as console from "console"
 
 type InjectedDependencies = {
   baseRepository: DAL.RepositoryService
@@ -313,6 +314,8 @@ export default class PaymentModuleService implements IPaymentModuleService {
           "captured_amount",
           "captured_at",
           "canceled_at",
+          "provider_id",
+          "data",
         ],
         relations: ["captures"],
       },
@@ -347,6 +350,19 @@ export default class PaymentModuleService implements IPaymentModuleService {
         )
       }
     }
+
+    const paymentData = await Promise.all(
+      payments.map((payment) =>
+        this.paymentProviderService_.capturePayment({
+          data: payment.data!,
+          provider_id: payment.provider_id,
+        })
+      )
+    )
+
+    await this.updatePayment(
+      payments.map((p, i) => ({ id: p.id, data: paymentData[i] }))
+    )
 
     await this.paymentService_.capture(data, sharedContext)
 
@@ -420,7 +436,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
       { id: data.map(({ payment_id }) => payment_id) },
       // TODO: temp - will be removed
       {
-        select: ["captured_amount"],
+        select: ["captured_amount", "provider_id", "data"],
       },
       sharedContext
     )
@@ -436,6 +452,22 @@ export default class PaymentModuleService implements IPaymentModuleService {
         )
       }
     }
+
+    const paymentData = await Promise.all(
+      payments.map((payment) =>
+        this.paymentProviderService_.refundFromPayment(
+          {
+            data: payment.data!,
+            provider_id: payment.provider_id,
+          },
+          inputMap.get(payment.id)!.amount
+        )
+      )
+    )
+
+    await this.updatePayment(
+      payments.map((p, i) => ({ id: p.id, data: paymentData[i] }))
+    )
 
     await this.paymentService_.refund(data, sharedContext)
 
@@ -800,7 +832,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
     const payments = await this.paymentService_.list(
       { id: input },
       {
-        select: ["captured_amount", "refunded_amount"],
+        select: ["captured_amount", "refunded_amount", "provider_id", "data"],
       }
     )
 
@@ -813,7 +845,14 @@ export default class PaymentModuleService implements IPaymentModuleService {
       }
     }
 
-    // TODO: cancel with the provider
+    await Promise.all(
+      payments.map((payment) =>
+        this.paymentProviderService_.cancelPayment({
+          data: payment.data!,
+          provider_id: payment.provider_id,
+        })
+      )
+    )
 
     const updated = await this.paymentService_.update(
       input.map((id) => ({

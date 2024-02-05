@@ -1,5 +1,4 @@
 import {
-  IPaymentProcessor,
   PaymentProcessorContext,
   PaymentProcessorError,
   PaymentProcessorSessionResponse,
@@ -24,6 +23,7 @@ export class SystemProviderService extends AbstractPaymentProcessor {
     return {}
   }
 
+  // @ts-ignore
   async initiatePayment(
     context: PaymentProcessorContext
   ): Promise<PaymentProcessorSessionResponse> {
@@ -42,6 +42,7 @@ export class SystemProviderService extends AbstractPaymentProcessor {
     throw new Error("Method not implemented.")
   }
 
+  // @ts-ignore
   async authorizePayment(_): Promise<Record<string, unknown>> {
     return { data: {}, status: "authorized" }
   }
@@ -50,6 +51,7 @@ export class SystemProviderService extends AbstractPaymentProcessor {
     return {}
   }
 
+  // @ts-ignore
   async updatePayment(_): Promise<Record<string, unknown>> {
     return {}
   }
