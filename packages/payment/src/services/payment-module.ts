@@ -35,7 +35,6 @@ import * as services from "@services"
 import { Payment } from "@models"
 
 import { joinerConfig } from "../joiner-config"
-import * as console from "console"
 
 type InjectedDependencies = {
   baseRepository: DAL.RepositoryService
