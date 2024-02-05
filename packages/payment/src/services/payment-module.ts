@@ -4,6 +4,7 @@ import {
   CreateCaptureDTO,
   CreatePaymentCollectionDTO,
   CreatePaymentDTO,
+  CreatePaymentProviderDTO,
   CreatePaymentSessionDTO,
   CreateRefundDTO,
   DAL,
@@ -12,12 +13,16 @@ import {
   ModuleJoinerConfig,
   ModulesSdkTypes,
   PaymentCollectionDTO,
+  PaymentCollectionStatus,
   PaymentDTO,
   PaymentSessionDTO,
+  PaymentSessionStatus,
   RefundDTO,
+  SetPaymentSessionsContextDTO,
   SetPaymentSessionsDTO,
   UpdatePaymentCollectionDTO,
   UpdatePaymentDTO,
+  UpdatePaymentSessionDTO,
 } from "@medusajs/types"
 import {
   InjectTransactionManager,
@@ -26,8 +31,6 @@ import {
   MedusaError,
   InjectManager,
 } from "@medusajs/utils"
-
-import { entityNameToLinkableKeysMap, joinerConfig } from "../joiner-config"
 import {
   Capture,
   Payment,
@@ -35,6 +38,9 @@ import {
   PaymentSession,
   Refund,
 } from "@models"
+
+import { entityNameToLinkableKeysMap, joinerConfig } from "../joiner-config"
+import PaymentProviderService from "./payment-provider"
 
 type InjectedDependencies = {
   baseRepository: DAL.RepositoryService
@@ -46,7 +52,7 @@ type InjectedDependencies = {
   paymentProviderService: PaymentProviderService
 }
 
-const generateMethodForModels = [PaymentCollection, PaymentSession]
+const generateMethodForModels = [PaymentCollection, PaymentSession, Payment]
 
 export default class PaymentModuleService<
     TPaymentCollection extends PaymentCollection = PaymentCollection,
@@ -68,7 +74,6 @@ export default class PaymentModuleService<
   >(PaymentCollection, generateMethodForModels, entityNameToLinkableKeysMap)
   implements IPaymentModuleService
 {
-  protected __container__: MedusaContainer
   protected baseRepository_: DAL.RepositoryService
 
   protected paymentService_: ModulesSdkTypes.InternalModuleService<TPayment>
@@ -76,7 +81,7 @@ export default class PaymentModuleService<
   protected refundService_: ModulesSdkTypes.InternalModuleService<TRefund>
   protected paymentSessionService_: ModulesSdkTypes.InternalModuleService<TPaymentSession>
   protected paymentCollectionService_: ModulesSdkTypes.InternalModuleService<TPaymentCollection>
-  paymentProviderService: PaymentProviderService
+  protected paymentProviderService_: PaymentProviderService
 
   constructor(
     {
@@ -92,8 +97,6 @@ export default class PaymentModuleService<
   ) {
     // @ts-ignore
     super(...arguments)
-
-    this.__container__ = arguments[0]
 
     this.baseRepository_ = baseRepository
 
@@ -404,7 +407,7 @@ export default class PaymentModuleService<
       data.map((d) => ({
         payment: d.payment_id,
         amount: d.amount,
-        captured_by: d.captured_by,
+        captured_by: d.created_by,
       })),
       sharedContext
     )
@@ -412,7 +415,6 @@ export default class PaymentModuleService<
     await this.updatePayment(
       payments.map((p, i) => ({ id: p.id, data: paymentData[i] }))
     )
-
 
     return await this.paymentService_.list(
       { id: data.map(({ payment_id }) => payment_id) },
@@ -512,7 +514,7 @@ export default class PaymentModuleService<
           context
         )
 
-      await this.updatePaymentSession({
+      await this.paymentSessionService_.update({
         id: paymentSession.id,
         data,
         status,
@@ -771,21 +773,17 @@ export default class PaymentModuleService<
   ): Promise<PaymentDTO | PaymentDTO[]> {
     const input = Array.isArray(paymentId) ? paymentId : [paymentId]
 
-    const payments = await this.paymentService_.list(
-      { id: input },
-      {
-        select: ["captured_amount", "refunded_amount", "provider_id", "data"],
-      }
-    )
+    const payments = await this.paymentService_.list({ id: input })
 
-    for (const payment of payments) {
-      if (payment.captured_amount !== 0) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          `Cannot cancel a payment: ${payment.id} that has been captured.`
-        )
-      }
-    }
+    // TODO: revisit when totals are implemented
+    // for (const payment of payments) {
+    //   if (payment.captured_amount !== 0) {
+    //     throw new MedusaError(
+    //       MedusaError.Types.INVALID_DATA,
+    //       `Cannot cancel a payment: ${payment.id} that has been captured.`
+    //     )
+    //   }
+    // }
 
     await Promise.all(
       payments.map((payment) =>

@@ -1,5 +1,8 @@
-import { IPaymentModuleService } from "@medusajs/types"
 import { SqlEntityManager } from "@mikro-orm/postgresql"
+
+import { IPaymentModuleService } from "@medusajs/types"
+import { initModules } from "medusa-test-utils"
+import { Modules } from "@medusajs/modules-sdk"
 
 import { initialize } from "../../../../src"
 import { DB_URL, MikroOrmWrapper } from "../../../utils"
@@ -9,8 +12,6 @@ import {
   createPayments,
 } from "../../../__fixtures__"
 import { getInitModuleConfig } from "../../../utils/get-init-module-config"
-import { initModules } from "medusa-test-utils"
-import { Modules } from "@medusajs/modules-sdk"
 
 jest.setTimeout(30000)
 
@@ -649,7 +650,7 @@ describe("Payment Module Service", () => {
               id: paymentCollection.id,
             }),
             payment_session: expect.objectContaining({
-              id: paymentCollection.payment_sessions![0].id,
+              id: session.id,
             }),
           })
         )
@@ -762,52 +763,52 @@ describe("Payment Module Service", () => {
       //   )
       // })
 
-    //   it("should fail to capture amount greater than authorized", async () => {
-    //     const error = await service
-    //       .capturePayment({
-    //         amount: 200,
-    //         payment_id: "pay-id-1",
-    //       })
-    //       .catch((e) => e)
-    //
-    //     expect(error.message).toEqual(
-    //       "Total captured amount for payment: pay-id-1 exceeds authorised amount."
-    //     )
-    //   })
-    //
-    //   it("should fail to capture already captured payment", async () => {
-    //     await service.capturePayment({
-    //       amount: 100,
-    //       payment_id: "pay-id-1",
-    //     })
-    //
-    //     const error = await service
-    //       .capturePayment({
-    //         amount: 100,
-    //         payment_id: "pay-id-1",
-    //       })
-    //       .catch((e) => e)
-    //
-    //     expect(error.message).toEqual(
-    //       "The payment: pay-id-1 is already fully captured."
-    //     )
-    //   })
-    //
-    //   it("should fail to capture a canceled payment", async () => {
-    //     await service.cancelPayment("pay-id-1")
-    //
-    //     const error = await service
-    //       .capturePayment({
-    //         amount: 100,
-    //         payment_id: "pay-id-1",
-    //       })
-    //       .catch((e) => e)
-    //
-    //     expect(error.message).toEqual(
-    //       "The payment: pay-id-1 has been canceled."
-    //     )
-    //   })
-    // })
+      //   it("should fail to capture amount greater than authorized", async () => {
+      //     const error = await service
+      //       .capturePayment({
+      //         amount: 200,
+      //         payment_id: "pay-id-1",
+      //       })
+      //       .catch((e) => e)
+      //
+      //     expect(error.message).toEqual(
+      //       "Total captured amount for payment: pay-id-1 exceeds authorised amount."
+      //     )
+      //   })
+      //
+      //   it("should fail to capture already captured payment", async () => {
+      //     await service.capturePayment({
+      //       amount: 100,
+      //       payment_id: "pay-id-1",
+      //     })
+      //
+      //     const error = await service
+      //       .capturePayment({
+      //         amount: 100,
+      //         payment_id: "pay-id-1",
+      //       })
+      //       .catch((e) => e)
+      //
+      //     expect(error.message).toEqual(
+      //       "The payment: pay-id-1 is already fully captured."
+      //     )
+      //   })
+      //
+      //   it("should fail to capture a canceled payment", async () => {
+      //     await service.cancelPayment("pay-id-1")
+      //
+      //     const error = await service
+      //       .capturePayment({
+      //         amount: 100,
+      //         payment_id: "pay-id-1",
+      //       })
+      //       .catch((e) => e)
+      //
+      //     expect(error.message).toEqual(
+      //       "The payment: pay-id-1 has been canceled."
+      //     )
+      //   })
+    })
 
     describe("refund", () => {
       it("should refund a payments in bulk successfully", async () => {
@@ -883,27 +884,28 @@ describe("Payment Module Service", () => {
 
     describe("cancel", () => {
       it("should cancel a payment", async () => {
-        const payment = await service.cancelPayment("pay-id-1")
+        const payment = await service.cancelPayment("pay-id-2")
 
         expect(payment).toEqual(
           expect.objectContaining({
-            id: "pay-id-1",
+            id: "pay-id-2",
             canceled_at: expect.any(Date),
           })
         )
       })
 
-      it("should throw if trying to cancel a captured payment", async () => {
-        await service.capturePayment({ payment_id: "pay-id-2", amount: 100 })
-
-        const error = await service
-          .cancelPayment("pay-id-2")
-          .catch((e) => e.message)
-
-        expect(error).toEqual(
-          "Cannot cancel a payment: pay-id-2 that has been captured."
-        )
-      })
+      // TODO: revisit when totals are implemented
+      // it("should throw if trying to cancel a captured payment", async () => {
+      //   await service.capturePayment({ payment_id: "pay-id-2", amount: 100 })
+      //
+      //   const error = await service
+      //     .cancelPayment("pay-id-2")
+      //     .catch((e) => e.message)
+      //
+      //   expect(error).toEqual(
+      //     "Cannot cancel a payment: pay-id-2 that has been captured."
+      //   )
+      // })
     })
   })
 })
