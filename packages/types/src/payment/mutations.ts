@@ -17,7 +17,6 @@ export interface UpdatePaymentCollectionDTO
 
   authorized_amount?: number
   refunded_amount?: number
-  completed_at?: Date
   status?: PaymentCollectionStatus
 }
 
@@ -50,7 +49,6 @@ export interface UpdatePaymentDTO {
   order_edit_id?: string
   customer_id?: string
 
-  canceled_at?: Date
   captured_at?: Date
 
   data?: Record<string, unknown>
@@ -67,7 +65,7 @@ export interface CreateRefundDTO {
   amount: number
   payment_id: string
 
-  captured_by?: string
+  created_by?: string
 }
 
 /**
@@ -79,8 +77,6 @@ export interface CreatePaymentSessionDTO {
   currency_code: string
   provider_id: string
   data: Record<string, unknown> // Payment Provider data
-
-  authorized_at?: Date
 
   cart_id?: string
   resource_id?: string
@@ -95,8 +91,6 @@ export interface UpdatePaymentSessionDTO {
 
   data?: Record<string, unknown>
   status?: PaymentSessionStatus
-
-  authorized_at?: Date | null
 
   cart_id?: string
   resource_id?: string

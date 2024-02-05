@@ -1,72 +1,104 @@
 import {
+  CaptureDTO,
   Context,
   CreateCaptureDTO,
   CreatePaymentCollectionDTO,
   CreatePaymentDTO,
-  CreatePaymentProviderDTO,
   CreatePaymentSessionDTO,
   CreateRefundDTO,
   DAL,
-  FilterablePaymentCollectionProps,
-  FindConfig,
   InternalModuleDeclaration,
   IPaymentModuleService,
-  MedusaContainer,
   ModuleJoinerConfig,
+  ModulesSdkTypes,
   PaymentCollectionDTO,
   PaymentDTO,
   PaymentSessionDTO,
-  SetPaymentSessionsContextDTO,
+  RefundDTO,
   SetPaymentSessionsDTO,
   UpdatePaymentCollectionDTO,
   UpdatePaymentDTO,
-  UpdatePaymentSessionDTO,
 } from "@medusajs/types"
 import {
-  InjectManager,
   InjectTransactionManager,
   MedusaContext,
+  ModulesSdkUtils,
   MedusaError,
-  PaymentCollectionStatus,
-  PaymentSessionStatus,
+  InjectManager,
 } from "@medusajs/utils"
 
-import * as services from "@services"
-import { Payment } from "@models"
-
-import { joinerConfig } from "../joiner-config"
+import { entityNameToLinkableKeysMap, joinerConfig } from "../joiner-config"
+import {
+  Capture,
+  Payment,
+  PaymentCollection,
+  PaymentSession,
+  Refund,
+} from "@models"
 
 type InjectedDependencies = {
   baseRepository: DAL.RepositoryService
-  paymentCollectionService: services.PaymentCollectionService
-  paymentService: services.PaymentService
-  paymentSessionService: services.PaymentSessionService
-  paymentProviderService: services.PaymentProviderService
+  paymentService: ModulesSdkTypes.InternalModuleService<any>
+  captureService: ModulesSdkTypes.InternalModuleService<any>
+  refundService: ModulesSdkTypes.InternalModuleService<any>
+  paymentSessionService: ModulesSdkTypes.InternalModuleService<any>
+  paymentCollectionService: ModulesSdkTypes.InternalModuleService<any>
+  paymentProviderService: PaymentProviderService
 }
 
-export default class PaymentModuleService implements IPaymentModuleService {
+const generateMethodForModels = [PaymentCollection, PaymentSession]
+
+export default class PaymentModuleService<
+    TPaymentCollection extends PaymentCollection = PaymentCollection,
+    TPayment extends Payment = Payment,
+    TCapture extends Capture = Capture,
+    TRefund extends Refund = Refund,
+    TPaymentSession extends PaymentSession = PaymentSession
+  >
+  extends ModulesSdkUtils.abstractModuleServiceFactory<
+    InjectedDependencies,
+    PaymentCollectionDTO,
+    {
+      PaymentCollection: { dto: PaymentCollectionDTO }
+      PaymentSession: { dto: PaymentSessionDTO }
+      Payment: { dto: PaymentDTO }
+      Capture: { dto: CaptureDTO }
+      Refund: { dto: RefundDTO }
+    }
+  >(PaymentCollection, generateMethodForModels, entityNameToLinkableKeysMap)
+  implements IPaymentModuleService
+{
+  protected __container__: MedusaContainer
   protected baseRepository_: DAL.RepositoryService
 
-  protected __container__: MedusaContainer
-  protected paymentService_: services.PaymentService
-  protected paymentSessionService_: services.PaymentSessionService
-  protected paymentCollectionService_: services.PaymentCollectionService
-  protected paymentProviderService_: services.PaymentProviderService
+  protected paymentService_: ModulesSdkTypes.InternalModuleService<TPayment>
+  protected captureService_: ModulesSdkTypes.InternalModuleService<TCapture>
+  protected refundService_: ModulesSdkTypes.InternalModuleService<TRefund>
+  protected paymentSessionService_: ModulesSdkTypes.InternalModuleService<TPaymentSession>
+  protected paymentCollectionService_: ModulesSdkTypes.InternalModuleService<TPaymentCollection>
+  paymentProviderService: PaymentProviderService
 
   constructor(
     {
       baseRepository,
       paymentService,
+      captureService,
+      refundService,
       paymentSessionService,
       paymentProviderService,
       paymentCollectionService,
     }: InjectedDependencies,
     protected readonly moduleDeclaration: InternalModuleDeclaration
   ) {
+    // @ts-ignore
+    super(...arguments)
+
     this.__container__ = arguments[0]
 
     this.baseRepository_ = baseRepository
 
+    this.refundService_ = refundService
+    this.captureService_ = captureService
     this.paymentService_ = paymentService
     this.paymentProviderService_ = paymentProviderService
     this.paymentSessionService_ = paymentSessionService
@@ -103,7 +135,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
       sharedContext
     )
 
-    return await this.baseRepository_.serialize(
+    return await this.baseRepository_.serialize<PaymentCollectionDTO[]>(
       Array.isArray(data) ? collections : collections[0],
       {
         populate: true,
@@ -137,85 +169,6 @@ export default class PaymentModuleService implements IPaymentModuleService {
         populate: true,
       }
     )
-  }
-
-  deletePaymentCollection(
-    paymentCollectionId: string[],
-    sharedContext?: Context
-  ): Promise<void>
-  deletePaymentCollection(
-    paymentCollectionId: string,
-    sharedContext?: Context
-  ): Promise<void>
-
-  @InjectTransactionManager("baseRepository_")
-  async deletePaymentCollection(
-    ids: string | string[],
-    @MedusaContext() sharedContext?: Context
-  ): Promise<void> {
-    const paymentCollectionIds = Array.isArray(ids) ? ids : [ids]
-    await this.paymentCollectionService_.delete(
-      paymentCollectionIds,
-      sharedContext
-    )
-  }
-
-  @InjectManager("baseRepository_")
-  async retrievePaymentCollection(
-    paymentCollectionId: string,
-    config: FindConfig<PaymentCollectionDTO> = {},
-    @MedusaContext() sharedContext: Context = {}
-  ): Promise<PaymentCollectionDTO> {
-    const paymentCollection = await this.paymentCollectionService_.retrieve(
-      paymentCollectionId,
-      config,
-      sharedContext
-    )
-
-    return await this.baseRepository_.serialize<PaymentCollectionDTO>(
-      paymentCollection,
-      { populate: true }
-    )
-  }
-
-  @InjectManager("baseRepository_")
-  async listPaymentCollections(
-    filters: FilterablePaymentCollectionProps = {},
-    config: FindConfig<PaymentCollectionDTO> = {},
-    @MedusaContext() sharedContext?: Context
-  ): Promise<PaymentCollectionDTO[]> {
-    const paymentCollections = await this.paymentCollectionService_.list(
-      filters,
-      config,
-      sharedContext
-    )
-
-    return await this.baseRepository_.serialize<PaymentCollectionDTO[]>(
-      paymentCollections,
-      { populate: true }
-    )
-  }
-
-  @InjectManager("baseRepository_")
-  async listAndCountPaymentCollections(
-    filters: FilterablePaymentCollectionProps = {},
-    config: FindConfig<PaymentCollectionDTO> = {},
-    @MedusaContext() sharedContext?: Context
-  ): Promise<[PaymentCollectionDTO[], number]> {
-    const [paymentCollections, count] =
-      await this.paymentCollectionService_.listAndCount(
-        filters,
-        config,
-        sharedContext
-      )
-
-    return [
-      await this.baseRepository_.serialize<PaymentCollectionDTO[]>(
-        paymentCollections,
-        { populate: true }
-      ),
-      count,
-    ]
   }
 
   createPayment(
@@ -306,18 +259,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
   ): Promise<Payment[]> {
     let payments = await this.paymentService_.list(
       { id: data.map((d) => d.payment_id) },
-      {
-        select: [
-          "amount",
-          "authorized_amount",
-          "captured_amount",
-          "captured_at",
-          "canceled_at",
-          "provider_id",
-          "data",
-        ],
-        relations: ["captures"],
-      },
+      {},
       sharedContext
     )
     const inputMap = new Map(data.map((d) => [d.payment_id, d]))
@@ -339,15 +281,13 @@ export default class PaymentModuleService implements IPaymentModuleService {
         )
       }
 
-      if (
-        Number(payment.captured_amount) + input.amount >
-        Number(payment.authorized_amount)
-      ) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          `Total captured amount for payment: ${payment.id} exceeds authorised amount.`
-        )
-      }
+      // TODO: revisit when https://github.com/medusajs/medusa/pull/6253 is merged
+      // if (payment.captured_amount + input.amount > payment.authorized_amount) {
+      //   throw new MedusaError(
+      //     MedusaError.Types.INVALID_DATA,
+      //     `Total captured amount for payment: ${payment.id} exceeds authorized amount.`
+      //   )
+      // }
     }
 
     const paymentData = await Promise.all(
@@ -359,22 +299,27 @@ export default class PaymentModuleService implements IPaymentModuleService {
       )
     )
 
+    await this.captureService_.create(
+      data.map((d) => ({
+        payment: d.payment_id,
+        amount: d.amount,
+        captured_by: d.captured_by,
+      })),
+      sharedContext
+    )
+
     await this.updatePayment(
       payments.map((p, i) => ({ id: p.id, data: paymentData[i] }))
     )
-
-    await this.paymentService_.capture(data, sharedContext)
 
     let fullyCapturedPaymentsId: string[] = []
     for (const payment of payments) {
       const input = inputMap.get(payment.id)!
 
-      if (
-        Number(payment.captured_amount) + input.amount ===
-        Number(payment.amount)
-      ) {
-        fullyCapturedPaymentsId.push(payment.id)
-      }
+      // TODO: revisit when https://github.com/medusajs/medusa/pull/6253 is merged
+      // if (payment.captured_amount + input.amount === payment.amount) {
+      //   fullyCapturedPaymentsId.push(payment.id)
+      // }
     }
 
     if (fullyCapturedPaymentsId.length) {
@@ -388,14 +333,7 @@ export default class PaymentModuleService implements IPaymentModuleService {
 
     return await this.paymentService_.list(
       { id: data.map((d) => d.payment_id) },
-      // TODO: temp - will be removed
       {
-        select: [
-          "amount",
-          "authorized_amount",
-          "captured_amount",
-          "captured_at",
-        ],
         relations: ["captures"],
       },
       sharedContext
@@ -433,24 +371,22 @@ export default class PaymentModuleService implements IPaymentModuleService {
   ): Promise<Payment[]> {
     const payments = await this.paymentService_.list(
       { id: data.map(({ payment_id }) => payment_id) },
-      // TODO: temp - will be removed
-      {
-        select: ["captured_amount", "provider_id", "data"],
-      },
+      {},
       sharedContext
     )
 
     const inputMap = new Map(data.map((d) => [d.payment_id, d]))
 
-    for (const payment of payments) {
-      const input = inputMap.get(payment.id)!
-      if (payment.captured_amount < input.amount) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          `Refund amount for payment: ${payment.id} cannot be greater than the amount captured on the payment.`
-        )
-      }
-    }
+    // TODO: revisit when https://github.com/medusajs/medusa/pull/6253 is merged
+    // for (const payment of payments) {
+    //   const input = inputMap.get(payment.id)!
+    //   if (payment.captured_amount < input.amount) {
+    //     throw new MedusaError(
+    //       MedusaError.Types.INVALID_DATA,
+    //       `Refund amount for payment: ${payment.id} cannot be greater than the amount captured on the payment.`
+    //     )
+    //   }
+    // }
 
     const paymentData = await Promise.all(
       payments.map((payment) =>
@@ -464,16 +400,23 @@ export default class PaymentModuleService implements IPaymentModuleService {
       )
     )
 
+    await this.refundService_.create(
+      data.map((d) => ({
+        payment: d.payment_id,
+        amount: d.amount,
+        captured_by: d.captured_by,
+      })),
+      sharedContext
+    )
+
     await this.updatePayment(
       payments.map((p, i) => ({ id: p.id, data: paymentData[i] }))
     )
 
-    await this.paymentService_.refund(data, sharedContext)
 
     return await this.paymentService_.list(
       { id: data.map(({ payment_id }) => payment_id) },
       {
-        select: ["amount", "refunded_amount"],
         relations: ["refunds"],
       },
       sharedContext
